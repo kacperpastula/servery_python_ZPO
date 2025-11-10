@@ -1,6 +1,6 @@
 import unittest
 from tests import *
-
+import exercise
 
 if __name__ == '__main__':
     kc310 = Product("KC310", 199.99)
@@ -10,5 +10,5 @@ if __name__ == '__main__':
     server = ListServer(products)
     client = Client(server)
     print(f"Total price: {client.get_total_price(2)}")
-    
+
     unittest.main()

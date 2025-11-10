@@ -1,51 +1,46 @@
-from typing import Optional, List, TypeVar
+from typing import Optional, List, TypeVar, Dict
 from abc import ABC, abstractmethod
 import re
 
 
 class Product:
     # FIXME: klasa powinna posiadać metodę inicjalizacyjną przyjmującą argumenty wyrażające nazwę produktu (typu str) i jego cenę (typu float) -- w takiej kolejności -- i ustawiającą atrybuty `name` (typu str) oraz `price` (typu float)
-    def __init__(self, _name: str, _price: float):
+    def __init__(self, _name: str, _price: float) -> None:
         if not re.fullmatch('^[a-zA-Z]+\\d+$', _name):
             raise ValueError
         else:
             self.name = _name
             self.price = _price
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return (self.name == other.name) and (self.price == other.price)  # FIXME: zwróć odpowiednią wartość
  
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.name, self.price))
  
 class ServerError(Exception):
     pass
-class TooManyProductsFoundError:
+class TooManyProductsFoundError(ServerError):
     
-      # Reprezentuje wyjątek związany ze znalezieniem zbyt dużej liczby produktów.
+    # Reprezentuje wyjątek związany ze znalezieniem zbyt dużej liczby produktów.
     pass
 
 class Server(ABC):
     n_max_returned_entries: int = 4
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
     def get_entries(self, n_letters: int = 1) -> list[Product]:
-        entries = []
-        letters = 0
-        numbers = 0
-        for n in self.get_all_products(n_letters):
-            for c in self.get_all_products(n_letters)[n]:
-                if c.isalpha():
-                    letters +=1
-                elif c.isnumeric():
-                    numbers += 1
-            if letters == n and (numbers == 2 or numbers == 3):
-                entries.append(n)
+
+        product_code = '^[a-zA-Z]{{{n_letters}}}\\d{{2,3}}$'.format(n_letters=n_letters)
+        entries = [p for p in self.get_all_products(n_letters) if re.fullmatch(product_code, p.name)]
+        
         if len(entries) > Server.n_max_returned_entries:
             raise TooManyProductsFoundError()
-        return sorted(entries, key=lambda entry: entry.name)
+        return sorted(entries, key=lambda entry: entry.price)
+    
     @abstractmethod
     def get_all_products(self, n_letters: int = 1) -> list[Product]:
-        raise NotImplementedError()
+        raise NotImplementedError
         pass
 ServerType = TypeVar('ServerType', bound=Server)
 # FIXME: Każada z poniższych klas serwerów powinna posiadać:
@@ -61,7 +56,7 @@ class ListServer(Server):
         super().__init__(*args, **kwargs)
         self.products: List[Product] = _products
 
-    def get_all_products(self, n_letters = 1) -> List[Product]:
+    def get_all_products(self, n_letters: int = 1) -> List[Product]:
         return self.products
     pass
  
@@ -69,9 +64,9 @@ class ListServer(Server):
 class MapServer:
     def __init__(self, _products: List[Product], *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.products: dict[str, Product] = {p.name for p in _products}
+        self.products: Dict[str, Product] = {p.name for p in _products}
 
-    def get_all_products(self, n_letters = 1) -> List[Product]:
+    def get_all_products(self, n_letters: int = 1) -> List[Product]:
         return list(self.products.values())
         
     pass
