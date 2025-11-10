@@ -9,10 +9,10 @@ class Product:
         if not re.fullmatch('^[a-zA-Z]+\\d+$', _name):
             raise ValueError
         else:
-            self.name = _name
-            self.price = _price
+            self.name: str = _name
+            self.price: float = _price
     def __eq__(self, other) -> bool:
-        return (self.name == other.name) and (self.price == other.price)  # FIXME: zwróć odpowiednią wartość
+        return isinstance(other, Product) and (self.name == other.name) and (self.price == other.price)  # FIXME: zwróć odpowiednią wartość
  
     def __hash__(self) -> int:
         return hash((self.name, self.price))
@@ -26,22 +26,23 @@ class TooManyProductsFoundError(ServerError):
 
 class Server(ABC):
     n_max_returned_entries: int = 4
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def get_entries(self, n_letters: int = 1) -> list[Product]:
+    def get_entries(self, n_letters: int = 1) -> List[Product]:
 
-        product_code = '^[a-zA-Z]{{{n_letters}}}\\d{{2,3}}$'.format(n_letters=n_letters)
+        product_code = '^[a-zA-Z]{{{}}}\\d{{2,3}}$'.format(n_letters)
         entries = [p for p in self.get_all_products(n_letters) if re.fullmatch(product_code, p.name)]
         
         if len(entries) > Server.n_max_returned_entries:
-            raise TooManyProductsFoundError()
+            raise TooManyProductsFoundError
         return sorted(entries, key=lambda entry: entry.price)
     
     @abstractmethod
-    def get_all_products(self, n_letters: int = 1) -> list[Product]:
+    def get_all_products(self, n_letters: int = 1) -> List[Product]:
         raise NotImplementedError
-        pass
+        
 ServerType = TypeVar('ServerType', bound=Server)
 # FIXME: Każada z poniższych klas serwerów powinna posiadać:
 #   (1) metodę inicjalizacyjną przyjmującą listę obiektów typu `Product` i ustawiającą atrybut `products` zgodnie z typem reprezentacji produktów na danym serwerze,
@@ -52,38 +53,38 @@ ServerType = TypeVar('ServerType', bound=Server)
     
     
 class ListServer(Server):
-    def __init__(self, _products: List[Product], *args, **kwargs) -> None:
+    def __init__(self, products: List[Product], *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.products: List[Product] = _products
+        self.__products: List[Product] = products
 
     def get_all_products(self, n_letters: int = 1) -> List[Product]:
-        return self.products
-    pass
+        return self.__products
+    
  
  
-class MapServer:
-    def __init__(self, _products: List[Product], *args, **kwargs) -> None:
+class MapServer(Server):
+    def __init__(self, products: List[Product], *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.products: Dict[str, Product] = {p.name for p in _products}
+        self.__products: Dict[str, Product]= {p.name: p for p in products}
 
     def get_all_products(self, n_letters: int = 1) -> List[Product]:
-        return list(self.products.values())
+        return list(self.__products.values())
         
-    pass
+    
  
 
 class Client:
     # FIXME: klasa powinna posiadać metodę inicjalizacyjną przyjmującą obiekt reprezentujący serwer
-    def __init__(self, _server: ServerType) -> None:
-        self.server: ServerType = _server
+    def __init__(self, server: ServerType) -> None:
+        self.server: ServerType = server
 
-    def get_total_price(self, n_letters: int) -> Optional[float]:
+    def get_total_price(self, n_letters: Optional[int]) -> Optional[float]:
         try:
             entries = self.server.get_entries() if n_letters is None else self.server.get_entries(n_letters)
             if not entries:
                 return None
-            total_price = sum([p.price for p in entries])
+            total_price = sum([entry.price for entry in entries])
             return total_price
         except TooManyProductsFoundError:
             return None
-        pass
+        
